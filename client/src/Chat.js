@@ -30,9 +30,7 @@ class Chat extends Component {
 
 					this.toggleSelf();
 
-					console.log(this.state)
-
-
+					console.log(this.state);
 				});
 		}
 	}
@@ -52,8 +50,20 @@ class Chat extends Component {
 	}
 
 	callOther() {
-		console.log(this.state.stream);
+		//	console.log(this.state.stream);
 		const localPeerConnection = new RTCPeerConnection(this.state.configuration);
+		//		console.log(localPeerConnection);
+		//	console.log(this.state.stream);
+		// navigator.mediaDevices
+		// .getUserMedia({ video: true, audio: false })
+		// .then(stream => {
+		// 	this.setState({ stream: stream });
+
+		// //	this.toggleSelf();
+
+		// 	console.log(this.state)
+
+		// });
 		this.state.stream.getTracks().forEach(track => {
 			localPeerConnection.addTrack(track, this.state.stream);
 		});
@@ -62,53 +72,66 @@ class Chat extends Component {
 				offerToReceiveVideo: 1
 			})
 			.then(offer => {
-				localPeerConnection.setLocalDescription(offer);
-				localPeerConnection.ontrack = event => {
-					console.log(event);
-					console.log("RECIEVING VIDEO");
-				};
-				localPeerConnection.onnegotiationneeded = event => {
-					console.log("need negociatioe");
-				};
-				this.setState({ localPeerConnection: localPeerConnection });
-				this.state.localPeerConnection.ontrack = event => {
-					console.log("GOT TRACK");
-				};
-				this.state.localPeerConnection.onicecandidate = event => {
-					if (event.candidate) {
-						let data = {
-							type: "iceCandidate",
-							payload: event.candidate
+				localPeerConnection
+					.setLocalDescription(offer)
+					.then(val => {
+						console.log(localPeerConnection.localDescription);
+						localPeerConnection.ontrack = event => {
+							console.log("RECIEVING VIDEO");
 						};
-						fetch("/icecandidate", {
-							method: "POST",
-							mode: "cors",
-							headers: {
-								"Content-Type": "application/json"
-							},
-							body: JSON.stringify(data)
-						});
-					}
-				};
-				this.state.localPeerConnection.oniceconnectionstatechange = event => {
-					if (event.currentTarget.iceConnectionState == "completed") {
-						console.log("we are connected!");
-						let test = this.state.localPeerConnection.getReceivers();
-						console.log(test);
-						//		let test2 = this.state.localDescription.getTracks();
-						//		console.log(test2)
-					}
-				};
-				this.state.localPeerConnection.ontrack = event => {
-					console.log(event, "GOT VIDEA");
-				};
-				return;
-			})
-			.then(() => {
-				this.sendToServer(localPeerConnection);
+						localPeerConnection.onnegotiationneeded = event => {
+							console.log("need negociatioe");
+						};
+						this.setState({ localPeerConnection: localPeerConnection });
+						this.state.localPeerConnection.ontrack = event => {
+							console.log("GOT TRACK");
+						};
+						this.state.localPeerConnection.onicecandidate = event => {
+							if (event.candidate) {
+								let data = {
+									who: "caller",
+									type: "iceCandidate",
+									payload: event.candidate
+								};
+								fetch("/icecandidate", {
+									method: "POST",
+									mode: "cors",
+									headers: {
+										"Content-Type": "application/json"
+									},
+
+									body: JSON.stringify(data)
+								});
+							}
+						};
+						this.state.localPeerConnection.oniceconnectionstatechange = event => {
+							if (event.currentTarget.iceConnectionState == "completed") {
+								console.log("we are connected!");
+								let test = this.state.localPeerConnection.getReceivers();
+								console.log(test);
+								//		let test2 = this.state.localDescription.getTracks();
+								//		console.log(test2)
+							}
+						};
+						this.state.localPeerConnection.ontrack = event => {
+							console.log(event, "GOT VIDEA");
+							let testo = new MediaStream();
+							testo.addTrack(event.track);
+							this.state.myVid.srcObject = testo;
+							this.state.myVid.play();
+						};
+						//		console.log(localPeerConnection.localDescription);
+						return;
+					})
+					.then(() => {
+						//		console.log(localPeerConnection)
+						this.sendToServer(localPeerConnection);
+					})
+					.catch(err => console.log(err));
 			});
 	}
 	sendToServer(localPeerConnection) {
+		console.log(localPeerConnection.localDescription);
 		fetch("/connect", {
 			method: "POST",
 			mode: "cors",
@@ -116,11 +139,12 @@ class Chat extends Component {
 				"Content-Type": "application/json"
 			},
 			body: JSON.stringify(localPeerConnection.localDescription)
-		}).then(res => res.json().then(res => console.log(res)));
+		}).then(res => console.log(res));
 	}
 
 	receiveCall() {
 		fetch("/connect").then(res => {
+			console.log(res);
 			res.json().then(res => this.handleRemotePeer(res.data));
 		});
 	}
@@ -133,24 +157,42 @@ class Chat extends Component {
 			this.state.stream.getTracks().forEach(track => {
 				remotePeerConnection.addTrack(track, this.state.stream);
 			});
+			remotePeerConnection
+				.createAnswer({
+					offerToReceiveVideo: 1
+				})
+				.then(answer => {
+					remotePeerConnection.setLocalDescription(answer).then(val => {
+						this.setState({ remotePeerConnection: remotePeerConnection });
+						remotePeerConnection.onnegotiationneeded = event => {
+							console.log("need nego");
+						};
+						this.sendAnswerToServer(remotePeerConnection);
+						this.state.remotePeerConnection.onicecandidate = event => {
+							if (event.candidate) {
+								let data = {
+									who: "callee",
+									type: "iceCandidate",
+									payload: event.candidate
+								};
+								console.log("remote peer getting iced");
+								fetch("/icecandidate", {
+									method: "POST",
+									mode: "cors",
+									headers: {
+										"Content-Type": "application/json"
+									},
+
+									body: JSON.stringify(data)
+								});
+							}
+						};
+					});
+				});
 		});
-		remotePeerConnection
-			.createAnswer({
-				offerToReceiveVideo: 1
-			})
-			.then(answer => {
-				remotePeerConnection.setLocalDescription(answer);
-				this.setState({ remotePeerConnection: remotePeerConnection });
-				remotePeerConnection.onnegotiationneeded = event => {
-					console.log("need nego");
-				};
-				return;
-			})
-			.then(() => {
-				this.sendAnswerToServer(remotePeerConnection);
-			});
 	}
 	sendAnswerToServer(remotePeerConnection) {
+		console.log(remotePeerConnection);
 		fetch("/sendAnswer", {
 			method: "POST",
 			mode: "cors",
@@ -177,26 +219,42 @@ class Chat extends Component {
 			res.json().then(res => {
 				res.data.forEach(val => {
 					console.log(val.payload);
-					this.state.remotePeerConnection.addIceCandidate(val.payload);
-					this.state.remotePeerConnection.ontrack = event => {
-						console.log(event, "GOT VIDEA");
-					};
-				});
-				this.state.remotePeerConnection.oniceconnectionstatechange = event => {
-					if (event.currentTarget.iceConnectionState == "completed") {
-						console.log("we are connected!");
-						let test = this.state.remotePeerConnection.getReceivers();
-						console.log(test);
-						//		let test2 = this.state.localDescription.getTracks();
-						//		console.log(test2)
+					let chicken = val.payload.candidate.search("srflx");
+					console.log(chicken);
+					if (chicken) {
+						if (this.state.remotePeerConnection) {
+							console.log("adding ice to remote")
+							this.state.remotePeerConnection.addIceCandidate(val.payload);
+							this.state.remotePeerConnection.ontrack = event => {
+								console.log(event, "GOT VIDEA");
+							};
+						}
+						if (this.state.localPeerConnection) {
+							console.log("adding ice to local")
+							this.state.localPeerConnection.addIceCandidate(val.payload);
+						}
 					}
-				};
-				let test = this.state.remotePeerConnection.getReceivers();
-				let mediastream = new MediaStream();
-					mediastream.addTrack(test[0].track)
-				this.state.remoteVid.srcObject = mediastream;
-				this.state.remoteVid.play();
-				console.log(test);
+				});
+				if (this.state.remotePeerConnection) {
+					this.state.remotePeerConnection.oniceconnectionstatechange = event => {
+						if (event.currentTarget.iceConnectionState == "completed") {
+							console.log("we are connected!");
+							let test = this.state.remotePeerConnection.getReceivers();
+							console.log(test);
+							//		let test2 = this.state.localDescription.getTracks();
+							//		console.log(test2)
+						}
+					};
+					let test = this.state.remotePeerConnection.getReceivers();
+					console.log(test);
+					let mediastream = new MediaStream();
+					mediastream.addTrack(test[0].track);
+					this.state.remoteVid.srcObject = mediastream;
+					this.state.remoteVid.play();
+					console.log(test);
+					console.log(mediastream.getTracks());
+					console.log(this.state.remoteVid);
+				}
 			})
 		);
 	}

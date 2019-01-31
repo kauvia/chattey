@@ -23,6 +23,7 @@ http.listen(port, hostname, () => {
 
 const connectUsers=(req,res)=>{
     connectionInfo = req.body;
+    console.log(req.body)
     res.send({success:true})
 }
 
@@ -44,6 +45,7 @@ let icecandy = [];
 const recieveIce = (req,res)=>{
     console.log(req.body);
     icecandy.push(req.body);
+
     res.send({success:true})
 }
 
