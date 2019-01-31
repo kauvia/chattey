@@ -37,6 +37,7 @@ const recieveAnswer=(req,res)=>{
     res.send({success:true})
 }
 const returnAnswer=(req,res)=>{
+    console.log(answer)
     res.send({data:answer})
 }
 
@@ -50,6 +51,7 @@ const recieveIce = (req,res)=>{
 }
 
 const sendIce = (req,res)=>{
+    console.log(icecandy)
     res.send({data:icecandy})
 }
 
