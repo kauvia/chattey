@@ -20,27 +20,38 @@ http.listen(port, () => {
 });
 
 const SOCKET_LIST = {};
+const ROOM_LIST = {};
 
 io.on("connection", socket => {
 	console.log("someone connected");
 	SOCKET_LIST[socket.id] = { socket: socket };
 
 	socket.on("login", data => {
-		console.log(data);
+//		console.log(data);
 		loginHandler(data, socket);
 	});
+	socket.on("view mode", data => {
+        ROOM_LIST[SOCKET_LIST[socket.id].room][socket.id].viewMode = data;
+	});
 	socket.on("icecandidate", data => {
-		console.log(data);
+	//	console.log(data);
+
 		socket.to(SOCKET_LIST[socket.id].room).emit("recieveIce", data);
 	});
 	socket.on("offer", data => {
-		console.log(data);
-		//    socket.emit('goodbye','dipshit')
-		socket.to(SOCKET_LIST[socket.id].room).emit("recieveOffer", data);
+		for (let obj in ROOM_LIST[SOCKET_LIST[socket.id].room]) {
+			if(!ROOM_LIST[SOCKET_LIST[socket.id].room][obj].viewMode){
+                io.to(`${obj}`).emit("recieveOffer",data)  
+            }
+		}
 	});
 	socket.on("answer", data => {
-		console.log(data);
-		socket.to(SOCKET_LIST[socket.id].room).emit("recieveAnswer", data);
+		for (let obj in ROOM_LIST[SOCKET_LIST[socket.id].room]) {
+			if(ROOM_LIST[SOCKET_LIST[socket.id].room][obj].viewMode){
+                io.to(`${obj}`).emit("recieveAnswer",data)  
+            }
+		}
+	//	socket.to(SOCKET_LIST[socket.id].room).emit("recieveAnswer", data);
 	});
 });
 
@@ -54,6 +65,21 @@ const loginHandler = (data, socket) => {
 					//ADD USER TO ROOM SHARED BY SAME ACCOUNT/USER
 					socket.join(data.username);
 					SOCKET_LIST[socket.id].room = data.username;
+					if (ROOM_LIST[data.username]) {
+						ROOM_LIST[data.username][socket.id] = {
+							socket: socket,
+							viewMode: false
+						};
+					} else {
+						ROOM_LIST[data.username] = {};
+
+						ROOM_LIST[data.username][socket.id] = {
+							socket: socket,
+							viewMode: false
+						};
+					}
+           //         console.log(ROOM_LIST)
+
 					io.to(data.username).emit("hello", `hello ${data.username}`);
 					socket.emit("login validation", [true]);
 				} else {
@@ -76,6 +102,6 @@ const loginHandler = (data, socket) => {
 				////
 			}
 		});
-	}
+    }
 };
 console.log(mongodbURI);

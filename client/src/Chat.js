@@ -12,10 +12,13 @@ class Chat extends Component {
 			configuration: {
 				iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 			},
-			remoteStreams: []
+			remoteStreams: [],
+			viewMode: null
 		};
 		this.viewCam = this.viewCam.bind(this);
 		this.playVideo = this.playVideo.bind(this);
+		this.viewMode = this.viewMode.bind(this);
+		this.cameraMode = this.cameraMode.bind(this);
 	}
 
 	componentDidMount() {
@@ -33,12 +36,16 @@ class Chat extends Component {
 		});
 		socket.on("recieveIce", data => {
 			console.log("recieved ice");
-			ICE.push(data);
-			this.setIce();
+			if (PEERS.length > 0) {
+				ICE.push(data);
+				this.setIce();
+			}
 		});
 		socket.on("recieveAnswer", data => {
 			console.log("recieved answer");
-			this.setAnswer(data);
+			if (PEERS.length > 0) {
+				this.setAnswer(data);
+			}
 		});
 	}
 	setupCam(data) {
@@ -103,33 +110,59 @@ class Chat extends Component {
 	}
 
 	signal(header, payload) {
-		let socket = this.props.socket
-		 socket.emit(header, payload);
+		let socket = this.props.socket;
+		socket.emit(header, payload);
+	}
+
+	viewMode() {
+		this.signal("view mode", true);
+		this.setState({ viewMode: true });
+	}
+	cameraMode() {
+		this.signal("view mode", false);
+		this.setState({ viewMode: false });
 	}
 
 	playVideo() {
-		this.state.remoteStreams.forEach((val,idx)=>{
-			let video = document.getElementById(`video${idx}`)
+		this.state.remoteStreams.forEach((val, idx) => {
+			let video = document.getElementById(`video${idx}`);
 			video.srcObject = val;
-			video.play()
-		})
+			video.play();
+		});
 	}
 
 	render() {
-		return (
-			<div className="Chat">
-				{this.state.remoteStreams.map((val,idx)=>{
-
-					return <div key={'stream'+idx}><video id={'video'+idx} style={{width:300,height:300}}  onClick={this.playVideo}/></div>
-				})
-				}
-				<div>
-					<button id="callButton" onClick={this.viewCam}>
-						View Cam
-					</button>
+		if (this.state.viewMode === true) {
+			return (
+				<div className="Chat">
+					{this.state.remoteStreams.map((val, idx) => {
+						return (
+							<div key={"stream" + idx}>
+								<video
+									id={"video" + idx}
+									style={{ width: 300, height: 300 }}
+									onClick={this.playVideo}
+								/>
+							</div>
+						);
+					})}
+					<div>
+						<button id="callButton" onClick={this.viewCam}>
+							View Cam
+						</button>
+					</div>
 				</div>
-			</div>
-		);
+			);
+		} else if (this.state.viewMode === false) {
+			return <div>Streaming is set up. Leave this device on.</div>;
+		} else {
+			return (
+				<div>
+					<button onClick={this.cameraMode}>Camera?</button>
+					<button onClick={this.viewMode}>Viewing?</button>
+				</div>
+			);
+		}
 	}
 }
 
