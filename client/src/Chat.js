@@ -1,6 +1,4 @@
 import React, { Component } from "react";
-import io from "socket.io-client";
-const socket = io("http://localhost:3010");
 
 const PEERS = [];
 const ICE = [];
@@ -21,6 +19,7 @@ class Chat extends Component {
 	}
 
 	componentDidMount() {
+		let socket = this.props.socket;
 		if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
 			navigator.mediaDevices
 				.getUserMedia({ video: true, audio: false })
@@ -104,7 +103,8 @@ class Chat extends Component {
 	}
 
 	signal(header, payload) {
-		socket.emit(header, payload);
+		let socket = this.props.socket
+		 socket.emit(header, payload);
 	}
 
 	playVideo() {
